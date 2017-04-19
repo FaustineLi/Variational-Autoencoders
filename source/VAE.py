@@ -1,3 +1,5 @@
+import numpy as np
+
 class VAE(object):
 
     def __init__(self, input_dim, output_dim, params):
@@ -22,31 +24,82 @@ class VAE(object):
             self.decoder_weights[i] = np.random.uniform(-0.1, 0.1, 
                                                         (self.decoder_layer_sizes[i],
                                                          self.decoder_layer_sizes[i+1]))
-        
         # set params
         self.alpha = params['alpha']
         #self.activation = params['activation']
-        self.loss = params['loss']
+        #self.loss = params['loss']
+        self.max_iter = params['max_iter']
 
-    def fit(self, train_data):
-        '''fits the NN model'''
+    def train(self, train_data):
+        '''train the VAE model'''
+        yhat = np.zeros_like(train_data)
+        step = self.loss(train_data, yhat)
+        count = 0
+        while step > 1e-3 and count < self.max_iter:        
+            # feed forward network
+            yhat = self.feedforward(train_data)
+            
+            # backpropogate errors
+            grad_encoder, grad_decoder = self.backprop(train_data, yhat)
+        
+            # update weights with gradient descent
+            for i in range(self.number_decoder_layers):
+                self.decoder_weights[i] -= self.alpha * grad_decoder[i]
+                
+            for i in range(self.number_encoder_layers):
+                self.encoder_weights[i] -= self.alpha * grad_encoder[i]
+                
+            step = step - self.loss(train_data, yhat) 
+            count += 1
+            
+        return yhat
+
+    def predict_(self):
+        '''predicts on a trained VAE model'''        
+        
+        # sample from latent variable space
+        
+        # feedforward on decoder
+        
         pass
 
-    def predict(self, new_data):
-        '''predicts on a trained VAE model'''
-        pass
-
-    def backprop(self):
+    def backprop(self, y, yhat):
         '''back-propagation algorithm'''
-        pass
+        # initialize 
+        grad_decoder = {}
+        grad_encoder = {}
+        
+        # backpropogate error through decoder layers
+        delta = - self.grad_loss(y, yhat) * self.grad_activation(self.decoder_input[1])
+        grad_decoder[1] = self.decoder_activation[0].T @ delta        
+        
+        delta = delta @ self.decoder_weights[1].T * self.grad_activation(self.decoder_input[0])
+        grad_decoder[0] = self.encoder_activation[1].T @ delta 
+        
+        # backpropogate errors through encoder layers
+        delta = delta @ self.decoder_weights[0].T * self.grad_activation(self.encoder_input[1])
+        grad_encoder[1] = self.encoder_activation[0].T @ delta
+        
+        delta = delta @ self.encoder_weights[1].T * self.grad_activation(self.encoder_input[0])
+        grad_encoder[0] = y.T @ delta
+        
+        return grad_encoder, grad_decoder
     
     def activation(self, x):
         '''activation function'''
         return 1 / (1 + np.exp(-x))
     
-    def derivative(self, x):
+    def grad_activation(self, x):
         '''derivative of the activation function'''
-        pass
+        return x * (1 - x)
+    
+    def loss(self, x, y):
+        '''loss function'''
+        return 0.5 * np.sum(x - y) ** 2
+    
+    def grad_loss(self, x, y):
+        '''gradient of loss function'''
+        return x - y   
             
     def feedforward(self, train_data):
         '''feedforward update step'''

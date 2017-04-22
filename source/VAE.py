@@ -32,10 +32,9 @@ class VAE(object):
 
     def train(self, train_data):
         '''train the VAE model'''
-        yhat = np.zeros_like(train_data)
-        step = self.loss(train_data, yhat)
         count = 0
-        while step > 1e-3 and count < self.max_iter:        
+        while count < self.max_iter:   
+            
             # feed forward network
             yhat = self.feedforward(train_data)
             
@@ -49,7 +48,6 @@ class VAE(object):
             for i in range(self.number_encoder_layers):
                 self.encoder_weights[i] -= self.alpha * grad_encoder[i]
                 
-            step = step - self.loss(train_data, yhat) 
             count += 1
             
         return yhat
@@ -71,7 +69,7 @@ class VAE(object):
         
         # backpropogate error through decoder layers
         delta = - self.grad_loss(y, yhat) * self.grad_activation(self.decoder_input[1])
-        grad_decoder[1] = self.decoder_activation[0].T @ delta        
+        grad_decoder[1] = self.decoder_activation[0].T @ delta
         
         delta = delta @ self.decoder_weights[1].T * self.grad_activation(self.decoder_input[0])
         grad_decoder[0] = self.encoder_activation[1].T @ delta 
@@ -91,11 +89,11 @@ class VAE(object):
     
     def grad_activation(self, x):
         '''derivative of the activation function'''
-        return x * (1 - x)
+        return np.exp(-x) / (1 + np.exp(-x))**2
     
     def loss(self, x, y):
         '''loss function'''
-        return 0.5 * np.sum(x - y) ** 2
+        return 0.5 * np.sum((x - y)**2)
     
     def grad_loss(self, x, y):
         '''gradient of loss function'''

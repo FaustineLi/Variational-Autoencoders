@@ -3,11 +3,12 @@ import numpy as np
 class VAE(object):
 
     def __init__(self, input_dim, output_dim, params):
+        '''intializes weights matrix and parameters'''
 
         # initialize size of VAE 
         self.encoder_layer_sizes = input_dim + [2]
-        self.decoder_layer_sizes = [2] + output_dim[::-1] 
-        self.total_layer_sizes   = input_dim + [2] + output_dim[::-1]
+        self.decoder_layer_sizes = [2, 1] + output_dim[::-1] 
+        self.total_layer_sizes   = input_dim + [2, 1] + output_dim[::-1]
        
         self.number_encoder_layers = len(self.encoder_layer_sizes) - 1
         self.number_decoder_layers = len(self.decoder_layer_sizes) - 1
@@ -26,12 +27,14 @@ class VAE(object):
                                                          self.decoder_layer_sizes[i+1]))
         # set params
         self.alpha = params['alpha']
-        #self.activation = params['activation']
-        #self.loss = params['loss']
         self.max_iter = params['max_iter']
+        self.activation = params['activation']
+        self.grad_activation = params['grad_act']
+        self.loss = params['loss']
+        self.grad_loss = params['grad_loss']
 
     def train(self, train_data):
-        '''train the VAE model'''
+        '''trains the VAE model'''
         count = 0
         while count < self.max_iter:   
             
@@ -50,15 +53,24 @@ class VAE(object):
                 
             count += 1
             
-        return yhat
+        return None
 
-    def predict_(self):
+    def predict(self, train_data):
         '''predicts on a trained VAE model'''        
+        yhat = self.feedforward(train_data)
+        return yhat
+    
+    def generate(self):
+        '''generates new images from a trained VAE model'''        
         
         # sample from latent variable space
         
         # feedforward on decoder
         
+        pass
+    
+    def KLD(self):
+        '''Kullback–Leibler divergence loss'''
         pass
 
     def backprop(self, y, yhat):
@@ -68,8 +80,11 @@ class VAE(object):
         grad_encoder = {}
         
         # backpropogate error through decoder layers
-        delta = - self.grad_loss(y, yhat) * self.grad_activation(self.decoder_input[1])
-        grad_decoder[1] = self.decoder_activation[0].T @ delta
+        delta = - self.grad_loss(y, yhat) * self.grad_activation(self.decoder_input[2])
+        grad_decoder[2] = self.decoder_activation[1].T @ delta
+        
+        delta = delta @ self.decoder_weights[2].T * self.grad_activation(self.decoder_input[1])
+        grad_decoder[1] = self.decoder_activation[0].T @ delta 
         
         delta = delta @ self.decoder_weights[1].T * self.grad_activation(self.decoder_input[0])
         grad_decoder[0] = self.encoder_activation[1].T @ delta 
@@ -80,27 +95,12 @@ class VAE(object):
         
         delta = delta @ self.encoder_weights[1].T * self.grad_activation(self.encoder_input[0])
         grad_encoder[0] = y.T @ delta
-        
-        return grad_encoder, grad_decoder
     
-    def activation(self, x):
-        '''activation function'''
-        return 1 / (1 + np.exp(-x))
-    
-    def grad_activation(self, x):
-        '''derivative of the activation function'''
-        return np.exp(-x) / (1 + np.exp(-x))**2
-    
-    def loss(self, x, y):
-        '''loss function'''
-        return 0.5 * np.sum((x - y)**2)
-    
-    def grad_loss(self, x, y):
-        '''gradient of loss function'''
-        return x - y   
+        return grad_encoder, grad_decoder 
             
     def feedforward(self, train_data):
         '''feedforward update step'''
+        
         # initialize storage for activations
         self.encoder_input = {}
         self.encoder_activation = {}
@@ -116,20 +116,19 @@ class VAE(object):
             self.encoder_activation[i] = self.activation(self.encoder_input[i])
         
         # store output as encoded latent variable parameters
-        self.mu = self.encoder_activation[i][0]
-        self.sigma = self.encoder_activation[i][1]
+        
+        self.mu = self.encoder_activation[i][:,1]
+        self.sigma = self.encoder_activation[i][:,0]
         
         # sample latent variable using reparameterization trick
+        self.z = np.array((self.mu.T, self.sigma.T)) 
         
         # feedforward update on the decoder network
-        self.decoder_input[0]      = self.encoder_activation[i] @ self.decoder_weights[0]
+        self.decoder_input[0]      = self.z.T @ self.decoder_weights[0]
         self.decoder_activation[0] = self.activation(self.decoder_input[0])
         
         for i in range(1, self.number_decoder_layers):
             self.decoder_input[i] = self.decoder_input[i-1] @ self.decoder_weights[i]
             self.decoder_activation[i] = self.activation(self.decoder_input[i])
-            
-        # output activation
-        self.output = self.decoder_activation[i]
 
-        return self.output
+        return self.decoder_activation[i]

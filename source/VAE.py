@@ -78,20 +78,31 @@ class VAE(object):
         # initialize 
         grad_decoder = {}
         grad_encoder = {}
-        
+    
         # backpropogate error through decoder layers
-        delta = - self.grad_loss(y, yhat) * self.grad_activation(self.decoder_input[2])
-        grad_decoder[2] = self.decoder_activation[1].T @ delta
+        rev_range = np.arange(self.number_decoder_layers)[::-1]
+        n = rev_range[0]
         
-        delta = delta @ self.decoder_weights[2].T * self.grad_activation(self.decoder_input[1])
-        grad_decoder[1] = self.decoder_activation[0].T @ delta 
+        delta = - self.grad_loss(y, yhat) * self.grad_activation(self.decoder_input[n])
+        grad_decoder[n] = self.decoder_activation[n-1].T @ delta
+        
+        for i in rev_range[1:-1]:
+            delta = delta @ self.decoder_weights[i+1].T * self.grad_activation(self.decoder_input[i])
+            grad_decoder[i] = self.decoder_activation[i-1].T @ delta 
+            
+        # backpropogate errors through encoder layers
+        rev_range = np.arange(self.number_encoder_layers)[::-1]
+        n = rev_range[0]
         
         delta = delta @ self.decoder_weights[1].T * self.grad_activation(self.decoder_input[0])
-        grad_decoder[0] = self.encoder_activation[1].T @ delta 
+        grad_decoder[0] = self.encoder_activation[1].T @ delta
         
-        # backpropogate errors through encoder layers
-        delta = delta @ self.decoder_weights[0].T * self.grad_activation(self.encoder_input[1])
-        grad_encoder[1] = self.encoder_activation[0].T @ delta
+        delta = delta @ self.decoder_weights[0].T * self.grad_activation(self.encoder_input[n])
+        grad_encoder[n] = self.encoder_activation[0].T @ delta
+        
+        for i in rev_range[1:-1]:
+            delta = delta @ self.encoder_weights[i+1].T * self.grad_activation(self.encoder_input[i])
+            grad_encoder[i] = self.encoder_activation[i-1].T @ delta
         
         delta = delta @ self.encoder_weights[1].T * self.grad_activation(self.encoder_input[0])
         grad_encoder[0] = y.T @ delta

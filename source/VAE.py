@@ -52,7 +52,6 @@ class VAE(object):
                 self.encoder_weights[i] -= self.alpha * grad_encoder[i]
                 
             count += 1
-            
         return None
 
     def predict(self, train_data):
@@ -64,10 +63,19 @@ class VAE(object):
         '''generates new images from a trained VAE model'''        
         
         # sample from latent variable space
+        self.z = self.z
         
         # feedforward on decoder
+        self.gen_input = {}
+        self.gen_activation = {}
+        self.gen_input[0]     = self.z.T @ self.decoder_weights[0]
+        self.gen_activation[0] = self.activation(self.gen_input[0])
         
-        pass
+        for i in range(1, self.number_decoder_layers):
+            self.gen_input[i] = self.gen_input[i-1] @ self.decoder_weights[i]
+            self.gen_activation[i] = self.activation(self.gen_input[i])
+
+        return self.gen_activation[i]
     
     def KLD(self):
         '''Kullback–Leibler divergence loss'''

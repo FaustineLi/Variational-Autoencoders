@@ -2,13 +2,13 @@ import numpy as np
 
 class vae(object):
 
-    def __init__(self, input_dim, output_dim, params):
+    def __init__(self, input_dim, output_dim, params, hidden_dim = 2):
         '''intializes weights matrix and parameters'''
 
         # initialize size of VAE 
-        self.encoder_layer_sizes = input_dim + [2]
-        self.decoder_layer_sizes = [2, 1] + output_dim[::-1] 
-        self.total_layer_sizes   = input_dim + [2, 1] + output_dim[::-1]
+        self.encoder_layer_sizes = input_dim + [hidden_dim]
+        self.decoder_layer_sizes = [hidden_dim] + output_dim[::-1] 
+        self.total_layer_sizes   = input_dim + [hidden_dim] + output_dim[::-1]
        
         self.number_encoder_layers = len(self.encoder_layer_sizes) - 1
         self.number_decoder_layers = len(self.decoder_layer_sizes) - 1
@@ -33,16 +33,16 @@ class vae(object):
         self.loss = params['loss']
         self.grad_loss = params['grad_loss']
 
-    def train(self, train_data):
+    def train(self, X, y):
         '''trains the VAE model'''
         count = 0
         while count < self.max_iter:   
             
             # feed forward network
-            yhat = self.feedforward(train_data)
+            yhat = self.feedforward(X)
             
             # backpropogate errors
-            grad_encoder, grad_decoder = self.backprop(train_data, yhat)
+            grad_encoder, grad_decoder = self.backprop(y, y, yhat)
         
             # update weights with gradient descent
             for i in range(self.number_decoder_layers):
@@ -52,11 +52,12 @@ class vae(object):
                 self.encoder_weights[i] -= self.alpha * grad_encoder[i]
                 
             count += 1
+            
         return None
 
-    def predict(self, train_data):
+    def predict(self, X):
         '''predicts on a trained VAE model'''        
-        yhat = self.feedforward(train_data)
+        yhat = self.feedforward(X)
         return yhat
     
     def generate(self):
@@ -81,7 +82,7 @@ class vae(object):
         '''Kullback–Leibler divergence loss'''
         pass
 
-    def backprop(self, y, yhat):
+    def backprop(self, X, y, yhat):
         '''back-propagation algorithm'''
         # initialize 
         grad_decoder = {}
@@ -91,29 +92,38 @@ class vae(object):
         rev_range = np.arange(self.number_decoder_layers)[::-1]
         n = rev_range[0]
         
-        delta = - self.grad_loss(y, yhat) * self.grad_activation(self.decoder_input[n])
-        grad_decoder[n] = self.decoder_activation[n-1].T @ delta
-        
-        for i in rev_range[1:-1]:
-            delta = delta @ self.decoder_weights[i+1].T * self.grad_activation(self.decoder_input[i])
-            grad_decoder[i] = self.decoder_activation[i-1].T @ delta 
+        if n == 0:
+            delta = - self.grad_loss(y, yhat) * self.grad_activation(self.decoder_input[0])
+            grad_decoder[0] = self.encoder_activation[0].T @ delta
+        else:
+            delta = - self.grad_loss(y, yhat) * self.grad_activation(self.decoder_input[n])
+            grad_decoder[n] = self.decoder_activation[n-1].T @ delta
             
+            for i in rev_range[1:-1]:
+                delta = delta @ self.decoder_weights[i+1].T * self.grad_activation(self.decoder_input[i])
+                grad_decoder[i] = self.decoder_activation[i-1].T @ delta 
+            
+            delta = delta @ self.decoder_weights[1].T * self.grad_activation(self.decoder_input[0])
+            grad_decoder[0] = self.encoder_activation[1].T @ delta
+
         # backpropogate errors through encoder layers
         rev_range = np.arange(self.number_encoder_layers)[::-1]
         n = rev_range[0]
         
-        delta = delta @ self.decoder_weights[1].T * self.grad_activation(self.decoder_input[0])
-        grad_decoder[0] = self.encoder_activation[1].T @ delta
+        if n != 0:
+            delta = delta @ self.decoder_weights[0].T * self.grad_activation(self.encoder_input[n])
+            grad_encoder[n] = self.encoder_activation[0].T @ delta
         
-        delta = delta @ self.decoder_weights[0].T * self.grad_activation(self.encoder_input[n])
-        grad_encoder[n] = self.encoder_activation[0].T @ delta
-        
-        for i in rev_range[1:-1]:
-            delta = delta @ self.encoder_weights[i+1].T * self.grad_activation(self.encoder_input[i])
-            grad_encoder[i] = self.encoder_activation[i-1].T @ delta
-        
-        delta = delta @ self.encoder_weights[1].T * self.grad_activation(self.encoder_input[0])
-        grad_encoder[0] = y.T @ delta
+            for i in rev_range[1:-1]:
+                delta = delta @ self.encoder_weights[i+1].T * self.grad_activation(self.encoder_input[i])
+                grad_encoder[i] = self.encoder_activation[i-1].T @ delta
+                
+            delta = delta @ self.encoder_weights[1].T * self.grad_activation(self.encoder_input[0])
+            grad_encoder[0] = X.T @ delta
+            
+        else:
+            delta = delta @ self.decoder_weights[0].T * self.grad_activation(self.encoder_input[0])
+            grad_encoder[0] = X.T @ delta
     
         return grad_encoder, grad_decoder 
             
@@ -135,19 +145,18 @@ class vae(object):
             self.encoder_activation[i] = self.activation(self.encoder_input[i])
         
         # store output as encoded latent variable parameters
-        
-        self.mu = self.encoder_activation[i][:,1]
-        self.sigma = self.encoder_activation[i][:,0]
+        self.mu = self.encoder_activation[self.number_encoder_layers - 1][:,1]
+        self.sigma = self.encoder_activation[self.number_encoder_layers - 1][:,0]
         
         # sample latent variable using reparameterization trick
-        self.z = np.array((self.mu.T, self.sigma.T)) 
+        self.z = self.encoder_activation[self.number_encoder_layers - 1] 
         
         # feedforward update on the decoder network
-        self.decoder_input[0]      = self.z.T @ self.decoder_weights[0]
+        self.decoder_input[0]      = self.z @ self.decoder_weights[0]
         self.decoder_activation[0] = self.activation(self.decoder_input[0])
         
         for i in range(1, self.number_decoder_layers):
             self.decoder_input[i] = self.decoder_input[i-1] @ self.decoder_weights[i]
             self.decoder_activation[i] = self.activation(self.decoder_input[i])
 
-        return self.decoder_activation[i]
+        return self.decoder_activation[self.number_decoder_layers - 1]

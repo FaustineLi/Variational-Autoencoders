@@ -32,51 +32,6 @@ class vae(object):
         self.grad_activation = params['grad_act']
         self.loss = params['loss']
         self.grad_loss = params['grad_loss']
-
-    def train(self, X, y):
-        '''trains the VAE model'''
-        count = 0
-        while count < self.max_iter:   
-            
-            # feed forward network
-            yhat = self.feedforward(X)
-            
-            # backpropogate errors
-            grad_encoder, grad_decoder = self.backprop(y, y, yhat)
-        
-            # update weights with gradient descent
-            for i in range(self.number_decoder_layers):
-                self.decoder_weights[i] -= self.alpha * grad_decoder[i]
-                
-            for i in range(self.number_encoder_layers):
-                self.encoder_weights[i] -= self.alpha * grad_encoder[i]
-                
-            count += 1
-            
-        return None
-
-    def predict(self, X):
-        '''predicts on a trained VAE model'''        
-        yhat = self.feedforward(X)
-        return yhat
-    
-    def generate(self):
-        '''generates new images from a trained VAE model'''        
-        
-        # sample from latent variable space
-        self.z = self.z
-        
-        # feedforward on decoder
-        self.gen_input = {}
-        self.gen_activation = {}
-        self.gen_input[0]     = self.z.T @ self.decoder_weights[0]
-        self.gen_activation[0] = self.activation(self.gen_input[0])
-        
-        for i in range(1, self.number_decoder_layers):
-            self.gen_input[i] = self.gen_input[i-1] @ self.decoder_weights[i]
-            self.gen_activation[i] = self.activation(self.gen_input[i])
-
-        return self.gen_activation[i]
     
     def KLD(self):
         '''Kullback–Leibler divergence loss'''
@@ -160,3 +115,43 @@ class vae(object):
             self.decoder_activation[i] = self.activation(self.decoder_input[i])
 
         return self.decoder_activation[self.number_decoder_layers - 1]
+    
+    
+    def train(self, X, y):
+        '''trains the VAE model'''
+        for i in range(self.max_iter):
+            
+            yhat = self.feedforward(X)
+            grad_encoder, grad_decoder = self.backprop(X, y, yhat)
+            for i in range(self.number_decoder_layers):
+                self.decoder_weights[i] -= self.alpha * grad_decoder[i]
+            
+            change = 0
+            for j in range(self.number_encoder_layers):
+                self.encoder_weights[j] -= self.alpha * grad_encoder[j]
+                change = grad_encoder[j]
+        
+        return None
+
+    def predict(self, X):
+        '''predicts on a trained VAE model'''        
+        yhat = self.feedforward(X)
+        return yhat
+    
+    def generate(self):
+        '''generates new images from a trained VAE model'''        
+        
+        # sample from latent variable space
+        self.z = self.z
+        
+        # feedforward on decoder
+        self.gen_input = {}
+        self.gen_activation = {}
+        self.gen_input[0]     = self.z.T @ self.decoder_weights[0]
+        self.gen_activation[0] = self.activation(self.gen_input[0])
+        
+        for i in range(1, self.number_decoder_layers):
+            self.gen_input[i] = self.gen_input[i-1] @ self.decoder_weights[i]
+            self.gen_activation[i] = self.activation(self.gen_input[i])
+
+        return self.gen_activation[i]

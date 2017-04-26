@@ -1,5 +1,3 @@
-import numpy as np
-
 class vae(object):
 
     def __init__(self, input_dim, output_dim, params, latent_dim = 2):

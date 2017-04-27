@@ -1,3 +1,5 @@
+import numpy as np
+
 class vae(object):
 
     def __init__(self, input_dim, output_dim, params, latent_dim = 2):
@@ -38,11 +40,15 @@ class vae(object):
             self.grad_loss = self.reconst_grad
         else:
             self.loss = (lambda y, yhat: self.reconst_loss(y, yhat) + self.KLD_loss())
-            self.grad_loss = (lambda y, yhat: self.reconst_grad(y, yhat) + self.KLD_loss())
+            self.grad_loss = self.reconst_grad
     
     def KLD_loss(self):
         '''Kullback–Leibler divergence loss'''
-        return - 0.5 * np.mean(1 + self.sigma - self.mu**2 - np.exp(self.sigma), axis=-1)
+        return - 0.5 * np.sum(1 + self.sigma - self.mu**2 - np.exp(self.sigma), axis=-1)
+    
+    def KLD_grad(self):
+        '''Kullback–Leibler divergence loss'''
+        return np.array([-0.5 * (np.exp(self.sigma) - 1), -self.mu])
         
     def backprop(self, X, y, yhat):
         '''back-propagation algorithm'''
@@ -56,36 +62,41 @@ class vae(object):
         
         if n == 0:
             delta = - self.grad_loss(y, yhat) * self.grad_activation(self.decoder_input[0])
-            grad_decoder[0] = self.encoder_activation[0].T @ delta
+            grad_decoder[0] = self.encoder_activation[0].T @ delta / X.shape[0]
         else:
             delta = - self.grad_loss(y, yhat) * self.grad_activation(self.decoder_input[n])
-            grad_decoder[n] = self.decoder_activation[n-1].T @ delta
+            grad_decoder[n] = self.decoder_activation[n-1].T @ delta / X.shape[0]
             
             for i in rev_range[1:-1]:
                 delta = delta @ self.decoder_weights[i+1].T * self.grad_activation(self.decoder_input[i])
-                grad_decoder[i] = self.decoder_activation[i-1].T @ delta 
+                grad_decoder[i] = self.decoder_activation[i-1].T @ delta / X.shape[0]
             
             delta = delta @ self.decoder_weights[1].T * self.grad_activation(self.decoder_input[0])
-            grad_decoder[0] = self.encoder_activation[1].T @ delta
+            grad_decoder[0] = self.encoder_activation[1].T @ delta / X.shape[0]
 
         # backpropogate errors through encoder layers
         rev_range = np.arange(self.number_encoder_layers)[::-1]
         n = rev_range[0]
+        delta_kld = self.KLD_grad().T * self.grad_activation(self.encoder_input[n])
         
-        if n != 0:
+        if n == 0:
+            delta = delta @ self.decoder_weights[0].T * self.grad_activation(self.encoder_input[0])
+            if self.mode is 'vae':
+                delta = delta + delta_kld
+            grad_encoder[0] = X.T @ delta / X.shape[0]
+
+        else:
             delta = delta @ self.decoder_weights[0].T * self.grad_activation(self.encoder_input[n])
-            grad_encoder[n] = self.encoder_activation[0].T @ delta
+            if self.mode is 'vae':
+                delta = delta + delta_kld
+            grad_encoder[n] = self.encoder_activation[0].T @ delta /X.shape[0]
         
             for i in rev_range[1:-1]:
                 delta = delta @ self.encoder_weights[i+1].T * self.grad_activation(self.encoder_input[i])
-                grad_encoder[i] = self.encoder_activation[i-1].T @ delta
+                grad_encoder[i] = self.encoder_activation[i-1].T @ delta /X.shape[0]
                 
             delta = delta @ self.encoder_weights[1].T * self.grad_activation(self.encoder_input[0])
-            grad_encoder[0] = X.T @ delta
-            
-        else:
-            delta = delta @ self.decoder_weights[0].T * self.grad_activation(self.encoder_input[0])
-            grad_encoder[0] = X.T @ delta
+            grad_encoder[0] = X.T @ delta /X.shape[0]
     
         return grad_encoder, grad_decoder 
             
@@ -113,7 +124,7 @@ class vae(object):
         # sample latent variable using reparameterization trick
         if self.mode is 'vae':
             self.epsilon = np.random.normal(0, 1, (self.mu.size, self.latent_dim))
-            self.z = self.mu + self.sigma * self.epsilon
+            self.z = self.mu[:, None] + self.sigma[:,None] * self.epsilon
         else:
             self.z = self.encoder_activation[self.number_encoder_layers - 1]
     

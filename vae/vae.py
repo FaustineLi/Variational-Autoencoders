@@ -16,6 +16,7 @@ class vae(object):
         self.number_total_layers   = len(self.total_layer_sizes) - 1
 
         # intialize weights
+        np.random.seed(10086)
         self.encoder_weights = {}
         for i in range(self.number_encoder_layers):
             self.encoder_weights[i] = np.random.uniform(-0.1, 0.1, 

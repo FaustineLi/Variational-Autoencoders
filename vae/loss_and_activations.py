@@ -1,3 +1,6 @@
+import math
+import random
+
 def act(x):
     mat = list()
     for r in x:

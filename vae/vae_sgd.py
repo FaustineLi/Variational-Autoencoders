@@ -49,7 +49,7 @@ class vae(object):
     
     def KLD_grad(self):
         '''Kullback–Leibler divergence loss'''
-        return np.array([-0.5 * (np.exp(self.sigma) - 1), -0.5 * self.mu])
+        return np.array([-0.5 * (np.exp(self.sigma) - 1), -self.mu])
         
     def backprop(self, X, y, yhat):
         '''back-propagation algorithm'''

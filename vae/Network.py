@@ -18,6 +18,7 @@ class Network:
         self.grad_activation = params['grad_activation']
         self.loss = params['loss']
         self.grad_loss = params['grad_loss']
+        self.batch_size = params['batch_size']
 
     def _feedforward(self, X):
         '''feedforward update step'''
@@ -42,11 +43,26 @@ class Network:
         return grad_weights
 
     def train(self, X, y):
-        '''trains model using gradient descent'''
-        
+        '''trains model using stochastic gradient descent'''
+        X_batch = X
+        y_batch = y
+
         for i in range(self.iter):
-            yhat = self._feedforward(X)
-            grad_weights = self._backprop(X, y, yhat)
+
+            if self.batch_size > 0 and self.batch_size < X.shape[0]:
+                k = np.choice(range(X.shape[0]), self.batch_size, replace=False)
+                X_batch = X[k,:]
+                y_batch = y[k,:]
+
+            yhat = self._feedforward(X_batch)
+            grad_weights = self._backprop(X_batch, y_batch, yhat)
 
             for j in range(len(self.weights)):
                 self.weights[j] -= self.alpha * grad_weights[j]
+
+    def predict(self, X):
+        '''predicts on trained model'''
+        for i in range(len(self.weights)):
+            z = z_act @ self.weights[i]
+            z_act = self.activation(z)
+        return z_act

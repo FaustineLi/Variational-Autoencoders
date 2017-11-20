@@ -5,8 +5,11 @@ class VAE:
     '''Variational Autoencoder'''
 
     def __init__(self, dimensions, latent_dim, params):
-        self.encoder = Network(dimensions[0] + [2], params)
-        self.decoder = Network([latent_dim] + dimensions[1], params)
+        params_encoder = params
+        params_decoder = params
+
+        self.encoder = Network(dimensions[0] + [2], params_encoder)
+        self.decoder = Network([latent_dim] + dimensions[1], params_encoder)
 
     def _forwardstep(self, X):
         # encoder learns parameters
@@ -30,8 +33,5 @@ class VAE:
     def learn(self, X):
         pass
 
-    def predict(self, X):
-        pass
-
-    def generate(self):
+    def generate(self, z = None):
         pass

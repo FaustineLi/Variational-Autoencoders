@@ -26,3 +26,12 @@ def selu(x):
     f  = lambd * np.where(x >= 0, x, alpha * (np.exp(x) - 1))
     df = lambd * np.where(x >= 0, 1, alpha * np.exp(x))
     return f, df
+
+
+activation_table = {
+    'relu': relu,
+    'sigmoid': sigmoid,
+    'tahn': tahn,
+    'identity': identity,
+    'selu': selu 
+}

@@ -1,11 +1,7 @@
-def mean_squared_error(y, yhat):
-    pass
+import numpy
 
-def huber_loss(y, yhat):
-    pass
+def squared_error(y, yhat):
+    return y - yhat
 
-def idenity(y, yhat):
-    pass
-
-
-
+def identity(y, yhat):
+    return yhat

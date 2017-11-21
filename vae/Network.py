@@ -1,3 +1,5 @@
+import Activations
+import Losses
 import numpy as np
 
 class Network:
@@ -15,30 +17,28 @@ class Network:
         self.alpha = params['alpha']
         self.iter = params['iter']
         self.activation = params['activation']
-        self.grad_activation = params['grad_activation']
         self.loss = params['loss']
-        self.grad_loss = params['grad_loss']
         self.batch_size = params['batch_size']
 
     def _feedforward(self, X):
         '''feedforward update step'''
-        self.z = {}
-        self.z_act = {0: X}
+        self._z = {}
+        self._z_act = {0: X}
 
         for i in range(len(self.weights)):
-            self.z[i] = self.z_act[i] @ self.weights[i]
-            self.z_act[i+1] = self.activation(self.z[i])
-        return self.z_act[i+1]
+            self._z[i] = self._z_act[i] @ self.weights[i]
+            self._z_act[i+1] = self.activation(self._z[i])[0]
+        return self._z_act[i+1]
 
     def _backprop(self, X, y, yhat):
         '''back-propagation algorithm'''
         n = len(self.weights)
-        delta = - self.grad_loss(y, yhat) * self.grad_activation(self.z[n-1])
-        grad_weights = {n-1: self.z_act[n-1].T @ delta}
+        delta = self.loss(y, yhat)[1] * self.activation(self._z[n-1])[1]
+        grad_weights = {n-1: self._z_act[n-1].T @ delta}
 
         for i in reversed(range(len(self.weights)-1)):
-            delta = delta @ self.weights[i+1].T * self.grad_activation(self.z[i])
-            grad_weights[i] = self.z_act[i].T @ delta
+            delta = delta @ self.weights[i+1].T * self.activation(self._z[i])[1]
+            grad_weights[i] = self._z_act[i].T @ delta
 
         return grad_weights
 
@@ -48,9 +48,8 @@ class Network:
         y_batch = y
 
         for i in range(self.iter):
-
             if self.batch_size > 0 and self.batch_size < X.shape[0]:
-                k = np.choice(range(X.shape[0]), self.batch_size, replace=False)
+                k = np.random.choice(range(X.shape[0]), self.batch_size, replace=False)
                 X_batch = X[k,:]
                 y_batch = y[k,:]
 
@@ -62,7 +61,8 @@ class Network:
 
     def predict(self, X):
         '''predicts on trained model'''
+        z_act = X
         for i in range(len(self.weights)):
             z = z_act @ self.weights[i]
-            z_act = self.activation(z)
+            z_act = self.activation(z)[0]
         return z_act

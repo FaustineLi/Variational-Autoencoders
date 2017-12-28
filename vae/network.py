@@ -1,6 +1,6 @@
-import Activations
-import Losses
 import numpy as np
+from . import activations
+from . import losses
 
 class Network:
 
@@ -16,9 +16,17 @@ class Network:
         # hyperparameters
         self.alpha = params['alpha']
         self.iter = params['iter']
-        self.activation = params['activation']
-        self.loss = params['loss']
         self.batch_size = params['batch_size']
+
+        if params['activation'] is str and params['activation'] in activation_table:
+            self.activation = activation_table[params['activation']]
+        else:
+            self.activation = params['activation']
+
+        if params['loss'] is str and params['loss'] in loss_table:
+            self.loss = loss_table[params['loss']]
+        else:
+            self.loss = params['loss']
 
     def _feedforward(self, X):
         '''feedforward update step'''

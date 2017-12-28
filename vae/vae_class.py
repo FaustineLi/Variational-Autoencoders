@@ -1,5 +1,5 @@
 import numpy as np
-import Network
+from .network import Network
 
 class VAE:
     '''Variational Autoencoder'''
@@ -83,3 +83,6 @@ class VAE:
         if not z:
             z = np.random.normal(0, 1, size=(1, self.latent_dim))
         return self.decoder.predict(z)
+
+    def encode_decode(self, X):
+        return self._forwardstep(X)

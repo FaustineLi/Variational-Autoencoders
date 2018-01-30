@@ -18,13 +18,13 @@ class Network:
         self.iter = params['iter']
         self.batch_size = params['batch_size']
 
-        if params['activation'] is str and params['activation'] in activation_table:
-            self.activation = activation_table[params['activation']]
+        if type(params['activation']) is str and params['activation'] in activations.activation_table:
+            self.activation = activations.activation_table[params['activation']]
         else:
             self.activation = params['activation']
 
-        if params['loss'] is str and params['loss'] in loss_table:
-            self.loss = loss_table[params['loss']]
+        if type(params['loss']) is str and params['loss'] in losses.loss_table:
+            self.loss = losses.loss_table[params['loss']]
         else:
             self.loss = params['loss']
 
@@ -41,7 +41,7 @@ class Network:
     def _backprop(self, X, y, yhat):
         '''back-propagation algorithm'''
         n = len(self.weights)
-        delta = self.loss(y, yhat)[1] * self.activation(self._z[n-1])[1]
+        delta = -1 * self.loss(y, yhat)[1] * self.activation(self._z[n-1])[1]
         grad_weights = {n-1: self._z_act[n-1].T @ delta}
 
         for i in reversed(range(len(self.weights)-1)):

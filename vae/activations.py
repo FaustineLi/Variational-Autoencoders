@@ -10,7 +10,7 @@ def sigmoid(x):
     df = f * (1 - f)
     return f, df
 
-def tahn(x):
+def tanh(x):
     f = -1 + 2 / (1 + np.exp(-2 * x))
     df = 1 - f**2
     return f, df
@@ -27,11 +27,10 @@ def selu(x):
     df = lambd * np.where(x >= 0, 1, alpha * np.exp(x))
     return f, df
 
-
 activation_table = {
     'relu': relu,
     'sigmoid': sigmoid,
-    'tahn': tahn,
+    'tanh': tanh,
     'identity': identity,
     'selu': selu 
 }
